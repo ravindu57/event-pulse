@@ -84,7 +84,7 @@ export default function MilestonesPage() {
   const [search, setSearch] = useState('');
   const [committeeFilter, setCommitteeFilter] = useState('all');
   const [showNewModal, setShowNewModal] = useState(false);
-  const [newM, setNewM] = useState({ title: '', description: '', deadline: '', committee_id: '', weight: 10 });
+  const [newM, setNewM] = useState({ title: '', description: '', deadline: '', committee_id: '', weight: 10, priority: 'medium' });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -114,9 +114,10 @@ export default function MilestonesPage() {
   }, [milestones, search, committeeFilter]);
 
   const cols = {
-    todo: filtered.filter(m => m.status === 'at_risk'),
-    in_progress: filtered.filter(m => m.status === 'upcoming' || m.status === 'in_progress'),
-    completed: filtered.filter(m => m.status === 'completed'),
+    at_risk:     filtered.filter(m => m.status === 'at_risk'),
+    upcoming:    filtered.filter(m => m.status === 'upcoming'),
+    in_progress: filtered.filter(m => m.status === 'in_progress'),
+    completed:   filtered.filter(m => m.status === 'completed'),
   };
 
   const onDragEnd = async (result: any) => {
@@ -124,19 +125,20 @@ export default function MilestonesPage() {
     const { source, destination, draggableId } = result;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    // Optimistic update
-    const destStatusMap: Record<string, string> = {
-      'col-todo': 'at_risk',
-      'col-in_progress': 'on_track',
-      'col-completed': 'completed'
+    // Map droppable column IDs → valid Milestone status values
+    const destStatusMap: Record<string, Milestone['status']> = {
+      'col-at_risk':     'at_risk',
+      'col-upcoming':    'upcoming',
+      'col-in_progress': 'in_progress',
+      'col-completed':   'completed',
     };
-    
+
     const newStatus = destStatusMap[destination.droppableId];
     if (!newStatus) return;
 
     setMilestones(prev => prev.map(m => {
       if (m.id === draggableId) {
-        return { ...m, status: newStatus as any, progress_pct: newStatus === 'completed' ? 100 : m.progress_pct };
+        return { ...m, status: newStatus, progress_pct: newStatus === 'completed' ? 100 : m.progress_pct };
       }
       return m;
     }));
@@ -159,6 +161,7 @@ export default function MilestonesPage() {
         const c = committees.find(c => c.id === created.committee_id);
         setMilestones(prev => [...prev, { ...created, committee: c }]);
         setShowNewModal(false);
+        setNewM({ title: '', description: '', deadline: '', committee_id: '', weight: 10, priority: 'medium' });
       }
     } catch (err) {
       console.error(err);
@@ -213,24 +216,24 @@ export default function MilestonesPage() {
       {/* Kanban Board */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
-          <div className="flex gap-6 min-w-[900px] h-full">
-            
-            {/* Column 1 */}
-            <div className="flex flex-col w-1/3 min-w-[300px]">
+          <div className="flex gap-4 min-w-[1200px] h-full">
+
+            {/* Column 1 — At Risk */}
+            <div className="flex flex-col w-1/4 min-w-[280px]">
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-2 h-2 rounded-full bg-error"></span>
                 <h3 className="font-geist text-title-md font-semibold text-on-surface">Critical / At Risk</h3>
-                <span className="ml-auto bg-surface-container-high text-secondary text-label-sm px-2 py-0.5 rounded-full">{cols.todo.length}</span>
+                <span className="ml-auto bg-surface-container-high text-secondary text-label-sm px-2 py-0.5 rounded-full">{cols.at_risk.length}</span>
               </div>
-              <Droppable droppableId="col-todo">
+              <Droppable droppableId="col-at_risk">
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={cn('flex-1 bg-surface-container-lowest/50 rounded-2xl p-3 border border-dashed transition-colors', snapshot.isDraggingOver ? 'border-primary bg-primary/5' : 'border-outline-variant overflow-y-auto')}
+                    className={cn('flex-1 bg-surface-container-lowest/50 rounded-2xl p-3 border border-dashed transition-colors', snapshot.isDraggingOver ? 'border-error bg-error/5' : 'border-outline-variant overflow-y-auto')}
                   >
                     <div className="space-y-4">
-                      {cols.todo.map((m, i) => <MilestoneCard key={m.id} m={m} index={i} />)}
+                      {cols.at_risk.map((m, i) => <MilestoneCard key={m.id} m={m} index={i} />)}
                     </div>
                     {provided.placeholder}
                   </div>
@@ -238,8 +241,31 @@ export default function MilestonesPage() {
               </Droppable>
             </div>
 
-            {/* Column 2 */}
-            <div className="flex flex-col w-1/3 min-w-[300px]">
+            {/* Column 2 — Upcoming */}
+            <div className="flex flex-col w-1/4 min-w-[280px]">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-2 h-2 rounded-full bg-tertiary"></span>
+                <h3 className="font-geist text-title-md font-semibold text-on-surface">Upcoming</h3>
+                <span className="ml-auto bg-surface-container-high text-secondary text-label-sm px-2 py-0.5 rounded-full">{cols.upcoming.length}</span>
+              </div>
+              <Droppable droppableId="col-upcoming">
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={cn('flex-1 bg-surface-container-lowest/50 rounded-2xl p-3 border border-dashed transition-colors', snapshot.isDraggingOver ? 'border-primary bg-primary/5' : 'border-outline-variant overflow-y-auto')}
+                  >
+                    <div className="space-y-4">
+                      {cols.upcoming.map((m, i) => <MilestoneCard key={m.id} m={m} index={i} />)}
+                    </div>
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+
+            {/* Column 3 — In Progress */}
+            <div className="flex flex-col w-1/4 min-w-[280px]">
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-2 h-2 rounded-full bg-primary"></span>
                 <h3 className="font-geist text-title-md font-semibold text-on-surface">In Progress</h3>
@@ -261,8 +287,8 @@ export default function MilestonesPage() {
               </Droppable>
             </div>
 
-            {/* Column 3 */}
-            <div className="flex flex-col w-1/3 min-w-[300px]">
+            {/* Column 4 — Completed */}
+            <div className="flex flex-col w-1/4 min-w-[280px]">
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-2 h-2 rounded-full bg-outline"></span>
                 <h3 className="font-geist text-title-md font-semibold text-on-surface">Completed</h3>
@@ -290,42 +316,81 @@ export default function MilestonesPage() {
 
       {/* New Milestone Modal */}
       {showNewModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-on-background/50 backdrop-blur-sm" onClick={() => setShowNewModal(false)}></div>
-          <div className="relative bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl border border-outline-variant overflow-hidden flex flex-col mx-4 animate-fade-in">
-            <div className="px-6 py-4 border-b border-outline-variant bg-surface flex justify-between items-center">
-              <h2 className="font-geist text-headline-sm text-on-surface font-semibold">Create Milestone</h2>
-              <button onClick={() => setShowNewModal(false)} className="text-secondary hover:text-on-surface">
-                <span className="material-symbols-outlined">close</span>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowNewModal(false); setNewM({ title: '', description: '', deadline: '', committee_id: '', weight: 10, priority: 'medium' }); } }}>
+          <div className="relative w-full rounded-2xl shadow-2xl border border-outline-variant overflow-hidden flex flex-col animate-fade-in"
+            style={{ maxWidth: '560px', backgroundColor: 'var(--color-surface, #fff)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant"
+              style={{ backgroundColor: 'var(--color-surface-container-low, #f5f5f5)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary text-[20px]">flag</span>
+                </div>
+                <div>
+                  <h2 className="font-geist text-title-md text-on-surface font-semibold leading-tight">Create Milestone</h2>
+                  <p className="text-label-sm text-secondary leading-tight mt-0.5">Add a tracked checkpoint to the event timeline</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowNewModal(false); setNewM({ title: '', description: '', deadline: '', committee_id: '', weight: 10, priority: 'medium' }); }}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant">
+                <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
-            <div className="p-6 flex flex-col gap-5">
-              <div>
-                <label className="block text-label-md font-medium text-on-surface mb-2">Title</label>
-                <input value={newM.title} onChange={e => setNewM(p => ({...p, title: e.target.value}))} className="w-full px-4 py-2 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary outline-none" placeholder="e.g. Venue Booking Confirmation" />
+            <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-label-md font-semibold text-on-surface">Title <span className="text-error">*</span></label>
+                <input value={newM.title} onChange={e => setNewM(p => ({...p, title: e.target.value}))} autoFocus
+                  className="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  placeholder="e.g. Venue Booking Confirmation" />
               </div>
-              <div>
-                <label className="block text-label-md font-medium text-on-surface mb-2">Description</label>
-                <textarea value={newM.description} onChange={e => setNewM(p => ({...p, description: e.target.value}))} className="w-full px-4 py-2 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary outline-none resize-none" rows={2} placeholder="Optional details..." />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-label-md font-semibold text-on-surface">Description</label>
+                <textarea value={newM.description} onChange={e => setNewM(p => ({...p, description: e.target.value}))}
+                  className="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none resize-none transition-all"
+                  rows={2} placeholder="Optional details about this milestone..." />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-label-md font-medium text-on-surface mb-2">Deadline</label>
-                  <input value={newM.deadline} onChange={e => setNewM(p => ({...p, deadline: e.target.value}))} type="date" className="w-full px-4 py-2 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary outline-none" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-label-md font-semibold text-on-surface">Committee <span className="text-error">*</span></label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]">groups</span>
+                    <select value={newM.committee_id} onChange={e => setNewM(p => ({...p, committee_id: e.target.value}))}
+                      className="w-full pl-10 pr-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary outline-none cursor-pointer appearance-none transition-all">
+                      <option value="" disabled>Select committee…</option>
+                      {committees.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-label-md font-medium text-on-surface mb-2">Committee</label>
-                  <select value={newM.committee_id} onChange={e => setNewM(p => ({...p, committee_id: e.target.value}))} className="w-full px-4 py-2 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary outline-none cursor-pointer">
-                    <option value="" disabled>Select...</option>
-                    {committees.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-label-md font-semibold text-on-surface">Deadline <span className="text-error">*</span></label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]">calendar_today</span>
+                    <input value={newM.deadline} onChange={e => setNewM(p => ({...p, deadline: e.target.value}))} type="date"
+                      className="w-full pl-10 pr-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary outline-none transition-all" />
+                  </div>
                 </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-label-md font-semibold text-on-surface">Impact Weight: <span className="text-primary">{newM.weight}%</span></label>
+                <input type="range" min={1} max={100} value={newM.weight} onChange={e => setNewM(p => ({...p, weight: Number(e.target.value)}))}
+                  className="w-full accent-primary cursor-pointer" />
+                <p className="text-label-sm text-secondary">How much does this milestone contribute to overall progress?</p>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-outline-variant bg-surface flex justify-end gap-3">
-              <button onClick={() => setShowNewModal(false)} className="px-4 py-2 bg-surface text-secondary border border-outline rounded-xl text-label-md hover:bg-surface-container-low">Cancel</button>
-              <button disabled={creating || !newM.title || !newM.deadline || !newM.committee_id} onClick={handleCreate} className="px-4 py-2 bg-primary text-on-primary rounded-xl text-label-md btn-tactile hover:bg-surface-tint disabled:opacity-50">
-                {creating ? 'Saving...' : 'Create Milestone'}
+            <div className="px-6 py-4 border-t border-outline-variant flex justify-end gap-3" style={{ backgroundColor: 'var(--color-surface-container-low, #f5f5f5)' }}>
+              <button onClick={() => setShowNewModal(false)}
+                className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-md font-medium text-on-surface-variant hover:bg-surface-container-high transition-colors">
+                Cancel
+              </button>
+              <button disabled={creating || !newM.title.trim() || !newM.deadline || !newM.committee_id} onClick={handleCreate}
+                className="px-5 py-2.5 bg-primary text-on-primary rounded-xl text-label-md font-medium btn-tactile hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-opacity">
+                {creating ? (
+                  <><span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>Saving…</>
+                ) : (
+                  <><span className="material-symbols-outlined text-[16px]">flag</span>Create Milestone</>
+                )}
               </button>
             </div>
           </div>
