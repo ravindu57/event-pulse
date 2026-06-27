@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { getDemoMilestonesPayload, isDemoMode } from '@/lib/demo-data';
-
-async function getSupabase() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
-      },
-    }
-  );
-}
+import { getAdminSupabase } from '@/lib/supabase/admin';
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,7 +8,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(getDemoMilestonesPayload());
     }
 
-    const supabase = await getSupabase();
+    const supabase = getAdminSupabase();
     
     // Get committee_id from query params if filtering
     const url = new URL(req.url);
@@ -60,10 +45,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Demo mode enabled' }, { status: 201 });
     }
 
-    const supabase = await getSupabase();
+    const supabase = getAdminSupabase();
     const body = await req.json();
-
-    const { data: { user } } = await supabase.auth.getUser();
 
     const { data, error } = await supabase
       .from('milestones')
@@ -75,7 +58,7 @@ export async function POST(req: NextRequest) {
         weight: body.weight ?? 10,
         status: 'upcoming',
         progress_pct: 0,
-        created_by: user?.id
+        created_by: null,
       })
       .select()
       .single();

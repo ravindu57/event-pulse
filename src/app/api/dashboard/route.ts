@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { getDemoDashboardPayload, isDemoMode } from '@/lib/demo-data';
-
-async function getSupabase() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
-      },
-    }
-  );
-}
+import { getAdminSupabase } from '@/lib/supabase/admin';
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,7 +8,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(getDemoDashboardPayload());
     }
 
-    const supabase = await getSupabase();
+    const supabase = getAdminSupabase();
 
     // Fetch committees
     const { data: committees } = await supabase.from('committees').select('*');

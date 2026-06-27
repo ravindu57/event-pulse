@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { getDemoSubmissionsPayload, isDemoMode } from '@/lib/demo-data';
-
-async function getSupabase() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (toSet) => toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
-      },
-    }
-  );
-}
+import { getAdminSupabase } from '@/lib/supabase/admin';
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,7 +8,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(getDemoSubmissionsPayload());
     }
 
-    const supabase = await getSupabase();
+    const supabase = getAdminSupabase();
     
     // Get committee_id from query params if filtering
     const url = new URL(req.url);
@@ -62,7 +47,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Demo mode enabled' }, { status: 201 });
     }
 
-    const supabase = await getSupabase();
+    const supabase = getAdminSupabase();
     const body = await req.json();
 
     const {
@@ -73,8 +58,6 @@ export async function POST(req: NextRequest) {
       tasks_completed = []
     } = body;
 
-    const { data: { user } } = await supabase.auth.getUser();
-
     // 1. Insert the daily submission
     const { data: submission, error: subError } = await supabase
       .from('daily_submissions')
@@ -83,7 +66,7 @@ export async function POST(req: NextRequest) {
         summary,
         files,
         llm_analysis,
-        submitted_by: user?.id,
+        submitted_by: null,
         submission_date: new Date().toISOString().split('T')[0] // Today's date
       })
       .select()
