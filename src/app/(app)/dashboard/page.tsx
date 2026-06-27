@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { cn, formatRelative, daysUntil } from '@/lib/utils';
-import { mockCommittees, mockDashboard, mockSubmissions } from '@/lib/mock-data';
-import { DashboardSummary, Committee, DailySubmission } from '@/types';
+import { mockCommittees, mockDashboard, mockSubmissions, mockMilestones } from '@/lib/mock-data';
+import { DashboardSummary, Committee, DailySubmission, Milestone } from '@/types';
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell,
   LineChart, Line, CartesianGrid,
@@ -82,6 +82,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [submissions, setSubmissions] = useState<DailySubmission[]>([]);
+  const [upcomingMilestones, setUpcomingMilestones] = useState<Milestone[]>([]);
   const [animated, setAnimated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +99,7 @@ export default function DashboardPage() {
         setData(json.summary ?? mockDashboard);
         setCommittees(Array.isArray(json.committees) && json.committees.length > 0 ? json.committees : mockCommittees);
         setSubmissions(Array.isArray(json.todays_submissions) && json.todays_submissions.length > 0 ? json.todays_submissions : mockSubmissions);
+        setUpcomingMilestones(Array.isArray(json.upcoming_milestones) ? json.upcoming_milestones : []);
         setError(null);
       } catch (err) {
         console.error(err);
@@ -105,6 +107,7 @@ export default function DashboardPage() {
         setData(mockDashboard);
         setCommittees(mockCommittees);
         setSubmissions(mockSubmissions);
+        setUpcomingMilestones(mockMilestones.filter(m => ['upcoming', 'in_progress', 'at_risk'].includes(m.status)).slice(0, 5));
       } finally {
         setLoading(false);
         setTimeout(() => setAnimated(true), 100);
@@ -260,6 +263,45 @@ export default function DashboardPage() {
               <Line type="monotone" dataKey="progress" stroke="#3525cd" strokeWidth={2} dot={{ fill: '#3525cd', r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+
+        {/* Upcoming Milestones */}
+        <div className="col-span-1 md:col-span-6 bg-surface border border-outline-variant rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-geist text-headline-sm text-on-surface font-semibold">Upcoming Milestones</h3>
+            <a href="/timeline" className="text-label-md text-primary hover:underline flex items-center gap-1">
+              View timeline <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </a>
+          </div>
+          <div className="space-y-3">
+            {upcomingMilestones.map(m => (
+              <div key={m.id} className="flex items-start gap-3 p-3 rounded-xl bg-surface-container-low border border-outline-variant">
+                <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5', 
+                  m.status === 'at_risk' ? 'bg-error-container text-on-error-container' : 'bg-primary/10 text-primary')}>
+                  <span className="material-symbols-outlined fill-icon text-[16px]">flag</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-label-md font-medium text-on-surface truncate">{m.title}</p>
+                    <span className={cn('text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
+                      m.status === 'at_risk' ? 'bg-error text-on-error' : 'bg-surface-container-highest text-secondary'
+                    )}>
+                      {new Date(m.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  <p className="text-body-sm text-secondary truncate mt-0.5">{m.committee?.name || 'Unassigned'}</p>
+                  <div className="w-full bg-surface-container-high rounded-full h-1 mt-2 overflow-hidden">
+                    <div className={cn('h-full rounded-full', m.status === 'at_risk' ? 'bg-error' : 'bg-primary')} style={{ width: `${m.progress_pct}%` }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+            {upcomingMilestones.length === 0 && (
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-container border border-outline-variant">
+                <p className="text-label-md font-medium text-secondary">No upcoming milestones.</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Recent Submissions */}

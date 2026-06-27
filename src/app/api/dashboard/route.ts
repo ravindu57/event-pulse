@@ -57,10 +57,19 @@ export async function GET(req: NextRequest) {
       ai_brief: aiBrief,
     };
 
+    // Fetch upcoming milestones
+    const { data: upcomingMilestones } = await supabase
+      .from('milestones')
+      .select('*, committee:committees(name)')
+      .in('status', ['upcoming', 'in_progress', 'at_risk'])
+      .order('deadline', { ascending: true })
+      .limit(5);
+
     return NextResponse.json({
       summary: dashboardSummary,
       committees: committees || [],
-      todays_submissions: todaysSubmissions || []
+      todays_submissions: todaysSubmissions || [],
+      upcoming_milestones: upcomingMilestones || []
     });
   } catch (err: unknown) {
     console.error('GET /api/dashboard error:', err);

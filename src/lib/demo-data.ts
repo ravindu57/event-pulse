@@ -15,6 +15,7 @@ export function getDemoDashboardPayload() {
     summary: mockDashboard,
     committees: mockCommittees,
     todays_submissions: getDemoSubmissionsPayload(),
+    upcoming_milestones: mockMilestones.filter(m => ['upcoming', 'in_progress', 'at_risk'].includes(m.status)).slice(0, 5),
   };
 }
 

@@ -76,6 +76,12 @@ export default function TimelinePage() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', deadline: '', committee_id: '', priority: 'medium', weight: 10 });
 
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiFile, setAiFile] = useState<File | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMilestones, setAiMilestones] = useState<any[]>([]);
+  const [aiCommitteeId, setAiCommitteeId] = useState('');
+
   useEffect(() => {
     async function load() {
       try {
@@ -161,6 +167,60 @@ export default function TimelinePage() {
     finally { setCreating(false); }
   };
 
+  const handleAiProcess = async () => {
+    if (!aiFile) return;
+    setAiLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', aiFile);
+      const res = await fetch('/api/ai-schedule', {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        const extracted = await res.json();
+        setAiMilestones(extracted);
+      } else {
+        alert('Failed to parse document with AI');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error parsing document');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleSaveAiMilestones = async () => {
+    if (!aiCommitteeId || aiMilestones.length === 0) return;
+    setAiLoading(true);
+    try {
+      const createdMilestones = [];
+      for (const m of aiMilestones) {
+        const res = await fetch('/api/milestones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...m, committee_id: aiCommitteeId })
+        });
+        if (res.ok) {
+          createdMilestones.push(await res.json());
+        }
+      }
+      const c = committees.find(c => c.id === aiCommitteeId);
+      setMilestones(prev => [...prev, ...createdMilestones.map(m => ({ ...m, committee: c }))]);
+      
+      setShowAiModal(false);
+      setAiFile(null);
+      setAiMilestones([]);
+      setAiCommitteeId('');
+    } catch (e) {
+      console.error(e);
+      alert('Failed to save milestones');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (loading) return (
     <div className="p-8 flex items-center justify-center min-h-screen">
       <span className="material-symbols-outlined animate-spin text-[32px] text-primary">progress_activity</span>
@@ -187,6 +247,11 @@ export default function TimelinePage() {
               </button>
             ))}
           </div>
+          <button onClick={() => setShowAiModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-surface text-primary border border-outline-variant rounded-xl text-label-md hover:bg-surface-container-low transition-colors shadow-sm btn-tactile">
+            <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+            AI Auto-Schedule
+          </button>
           <button onClick={() => setShowModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl text-label-md hover:opacity-90 transition-opacity shadow-sm btn-tactile">
             <span className="material-symbols-outlined text-[18px]">add</span>
@@ -445,6 +510,121 @@ export default function TimelinePage() {
                   <><span className="material-symbols-outlined text-[16px]">add</span>Add to Timeline</>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── AI AUTO-SCHEDULE MODAL ── */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if (e.target === e.currentTarget && !aiLoading) { setShowAiModal(false); setAiFile(null); setAiMilestones([]); setAiCommitteeId(''); } }}>
+          <div className="relative w-full rounded-2xl shadow-2xl border border-outline-variant overflow-hidden flex flex-col"
+            style={{ maxWidth: '640px', backgroundColor: 'var(--color-surface, #fff)', maxHeight: '90vh' }}
+            onClick={e => e.stopPropagation()}>
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant"
+              style={{ backgroundColor: 'var(--color-surface-container-low, #f5f5f5)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary text-[20px]">auto_awesome</span>
+                </div>
+                <div>
+                  <h2 className="font-geist text-title-md text-on-surface font-semibold leading-tight">AI Auto-Schedule</h2>
+                  <p className="text-label-sm text-secondary leading-tight mt-0.5">Upload a plan or notes to auto-generate milestones</p>
+                </div>
+              </div>
+              <button disabled={aiLoading} onClick={() => { setShowAiModal(false); setAiFile(null); setAiMilestones([]); setAiCommitteeId(''); }}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant disabled:opacity-50">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 flex flex-col gap-6 overflow-y-auto">
+              {aiMilestones.length === 0 ? (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-label-md font-semibold text-on-surface">Upload Document</label>
+                    <div className="border-2 border-dashed border-outline-variant rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-surface-container-lowest transition-colors relative cursor-pointer">
+                      <input type="file" accept=".txt,.pdf" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={e => setAiFile(e.target.files?.[0] || null)} />
+                      <span className="material-symbols-outlined text-[40px] text-primary mb-3">upload_file</span>
+                      <p className="text-body-md text-on-surface font-medium">{aiFile ? aiFile.name : 'Click or drag a PDF/TXT file here'}</p>
+                      <p className="text-body-sm text-secondary mt-1">AI will analyze it to extract deadlines and milestones.</p>
+                    </div>
+                  </div>
+                  
+                  {aiFile && (
+                    <div className="flex justify-end">
+                      <button disabled={aiLoading} onClick={handleAiProcess}
+                        className="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-medium btn-tactile hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
+                        {aiLoading ? (
+                          <><span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>Processing with AI...</>
+                        ) : (
+                          <><span className="material-symbols-outlined text-[16px]">psychology</span>Extract Milestones</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-label-md font-semibold text-on-surface">Assign to Committee <span className="text-error">*</span></label>
+                    <div className="relative">
+                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]">groups</span>
+                      <select value={aiCommitteeId} onChange={e => setAiCommitteeId(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-outline-variant text-body-md outline-none focus:border-primary cursor-pointer appearance-none transition-all"
+                        style={{ backgroundColor: 'var(--color-surface-container-lowest, #fff)' }}>
+                        <option value="" disabled>Select committee...</option>
+                        {committees.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-label-md font-semibold text-on-surface mb-3 flex items-center justify-between">
+                      Extracted Milestones
+                      <span className="bg-primary/10 text-primary text-[11px] px-2 py-0.5 rounded-full">{aiMilestones.length} Found</span>
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                      {aiMilestones.map((m, idx) => (
+                        <div key={idx} className="p-4 rounded-xl border border-outline-variant bg-surface-container-lowest flex flex-col gap-2 relative">
+                          <button onClick={() => setAiMilestones(p => p.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-secondary hover:text-error transition-colors">
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                          </button>
+                          <div className="flex gap-2 items-start">
+                            <div className="flex-1">
+                              <input value={m.title} onChange={e => setAiMilestones(p => p.map((x, i) => i === idx ? { ...x, title: e.target.value } : x))} className="w-full font-semibold text-label-md text-on-surface outline-none bg-transparent" placeholder="Milestone Title" />
+                              <input value={m.description} onChange={e => setAiMilestones(p => p.map((x, i) => i === idx ? { ...x, description: e.target.value } : x))} className="w-full text-body-sm text-secondary outline-none bg-transparent mt-1" placeholder="Description" />
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <input type="date" value={m.deadline} onChange={e => setAiMilestones(p => p.map((x, i) => i === idx ? { ...x, deadline: e.target.value } : x))} className="text-label-sm font-semibold text-on-surface outline-none bg-surface border border-outline-variant rounded px-2 py-1 mb-1" />
+                              <div className="text-[10px] text-secondary">Weight: {m.weight}%</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end gap-3 pt-4 border-t border-outline-variant mt-2">
+                     <button disabled={aiLoading} onClick={() => { setAiMilestones([]); setAiFile(null); }}
+                        className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-md font-medium text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-50">
+                        Discard All
+                      </button>
+                      <button disabled={aiLoading || !aiCommitteeId} onClick={handleSaveAiMilestones}
+                        className="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-medium btn-tactile hover:opacity-90 disabled:opacity-50 flex items-center gap-2">
+                        {aiLoading ? (
+                          <><span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>Saving...</>
+                        ) : (
+                          <><span className="material-symbols-outlined text-[16px]">check</span>Save to Timeline</>
+                        )}
+                      </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
