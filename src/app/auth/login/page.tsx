@@ -75,7 +75,7 @@ export default function LoginPage() {
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-tertiary/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative w-full max-w-md animate-fade-in">
+      <div className="relative w-full max-w-[448px] animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30">
