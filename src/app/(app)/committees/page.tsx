@@ -402,39 +402,121 @@ export default function CommitteesPage() {
 
       {/* New Committee Modal */}
       {showNewModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-on-background/50 backdrop-blur-sm" onClick={() => setShowNewModal(false)}></div>
-          <div className="relative bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl border border-outline-variant overflow-hidden flex flex-col mx-4">
-            <div className="px-6 py-4 border-b border-outline-variant bg-surface flex justify-between items-center">
-              <h2 className="font-geist text-headline-sm text-on-surface font-semibold">Create New Committee</h2>
-              <button onClick={() => setShowNewModal(false)} className="text-secondary hover:text-on-surface">
-                <span className="material-symbols-outlined">close</span>
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowNewModal(false); }}
+        >
+          <div
+            className="relative w-full rounded-2xl shadow-2xl border border-outline-variant overflow-hidden flex flex-col"
+            style={{ maxWidth: '540px', backgroundColor: 'var(--color-surface, #fff)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant" style={{ backgroundColor: 'var(--color-surface-container-low, #f5f5f5)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-primary text-[20px]">group_add</span>
+                </div>
+                <div>
+                  <h2 className="font-geist text-title-md text-on-surface font-semibold leading-tight">Create New Committee</h2>
+                  <p className="text-label-sm text-secondary leading-tight mt-0.5">Add a new group to track progress</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowNewModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-high transition-colors text-on-surface-variant"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
-            <div className="p-6 flex flex-col gap-5">
-              <div>
-                <label className="block text-label-md font-medium text-on-surface mb-2">Committee Name</label>
-                <input value={newComm.name} onChange={e => setNewComm(p => ({...p, name: e.target.value}))} className="w-full px-4 py-2 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="e.g. Logistics & Venue" />
+
+            {/* Modal Body */}
+            <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+              {/* Committee Name */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-label-md font-semibold text-on-surface">
+                  Committee Name <span className="text-error">*</span>
+                </label>
+                <input
+                  value={newComm.name}
+                  onChange={e => setNewComm(p => ({ ...p, name: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-outline-variant text-body-md text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  style={{ backgroundColor: 'var(--color-surface-container-lowest, #fff)' }}
+                  placeholder="e.g. Logistics & Venue"
+                  autoFocus
+                />
               </div>
-              <div>
-                <label className="block text-label-md font-medium text-on-surface mb-2">Description</label>
-                <textarea value={newComm.description} onChange={e => setNewComm(p => ({...p, description: e.target.value}))} className="w-full px-4 py-2 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" rows={3} placeholder="What does this committee do?" />
+
+              {/* Description */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-label-md font-semibold text-on-surface">Description</label>
+                <textarea
+                  value={newComm.description}
+                  onChange={e => setNewComm(p => ({ ...p, description: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl border border-outline-variant text-body-md text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
+                  style={{ backgroundColor: 'var(--color-surface-container-lowest, #fff)' }}
+                  rows={3}
+                  placeholder="What does this committee handle?"
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-label-md font-medium text-on-surface mb-2">Lead Name</label>
-                  <input value={newComm.lead_name} onChange={e => setNewComm(p => ({...p, lead_name: e.target.value}))} className="w-full px-4 py-2 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary outline-none" placeholder="Sarah Jenkins" />
+
+              {/* Lead Name + Email side by side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-label-md font-semibold text-on-surface">Lead Name</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]">person</span>
+                    <input
+                      value={newComm.lead_name}
+                      onChange={e => setNewComm(p => ({ ...p, lead_name: e.target.value }))}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-outline-variant text-body-md text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      style={{ backgroundColor: 'var(--color-surface-container-lowest, #fff)' }}
+                      placeholder="Sarah Jenkins"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-label-md font-medium text-on-surface mb-2">Lead Email</label>
-                  <input value={newComm.lead_email} onChange={e => setNewComm(p => ({...p, lead_email: e.target.value}))} type="email" className="w-full px-4 py-2 bg-surface border border-outline-variant rounded-xl text-body-md focus:border-primary outline-none" placeholder="lead@event.com" />
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-label-md font-semibold text-on-surface">Lead Email</label>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-secondary text-[18px]">mail</span>
+                    <input
+                      value={newComm.lead_email}
+                      onChange={e => setNewComm(p => ({ ...p, lead_email: e.target.value }))}
+                      type="email"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-outline-variant text-body-md text-on-surface outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      style={{ backgroundColor: 'var(--color-surface-container-lowest, #fff)' }}
+                      placeholder="lead@event.com"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-outline-variant bg-surface flex justify-end gap-3">
-              <button onClick={() => setShowNewModal(false)} className="px-4 py-2 bg-surface text-secondary border border-outline rounded-xl text-label-md hover:bg-surface-container-low">Cancel</button>
-              <button disabled={creating} onClick={handleCreate} className="px-4 py-2 bg-primary text-on-primary rounded-xl text-label-md btn-tactile hover:bg-surface-tint disabled:opacity-50">
-                {creating ? 'Creating...' : 'Create Committee'}
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-outline-variant" style={{ backgroundColor: 'var(--color-surface-container-low, #f5f5f5)' }}>
+              <button
+                onClick={() => { setShowNewModal(false); setNewComm({ name: '', description: '', lead_name: '', lead_email: '' }); }}
+                className="px-5 py-2.5 rounded-xl border border-outline-variant text-label-md font-medium text-on-surface-variant hover:bg-surface-container-high transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={creating || !newComm.name.trim()}
+                onClick={handleCreate}
+                className="px-5 py-2.5 rounded-xl bg-primary text-on-primary text-label-md font-medium btn-tactile hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {creating ? (
+                  <>
+                    <span className="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                    Create Committee
+                  </>
+                )}
               </button>
             </div>
           </div>
