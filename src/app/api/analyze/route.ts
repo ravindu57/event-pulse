@@ -42,14 +42,14 @@ ${summary}`;
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'llama-3.1-8b-instant',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userMessage },
       ],
       response_format: { type: 'json_object' },
       temperature: 0.3,
-      max_tokens: 800,
+      max_tokens: 500,
     }),
   });
 
@@ -83,7 +83,7 @@ Return ONLY the JSON object, no markdown, no code blocks.`;
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 800,
+          maxOutputTokens: 500,
           responseMimeType: 'application/json',
         },
       }),
