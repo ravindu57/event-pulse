@@ -8,6 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell,
   LineChart, Line, CartesianGrid,
 } from 'recharts';
+import { Notification } from '@/types';
 
 function ProgressRing({ pct, size = 64, stroke = 4 }: { pct: number; size?: number; stroke?: number }) {
   const r = (size - stroke * 2) / 2;
@@ -78,6 +79,72 @@ const weeklyData = [
   { day: 'Sun', submissions: 4, progress: 72 },
 ];
 
+// Generate last 90 days of heatmap data (GitHub-style contribution grid)
+function generateHeatmapData() {
+  const days = [];
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const dayOfWeek = d.getDay();
+    // Weekends have lower activity
+    const max = dayOfWeek === 0 || dayOfWeek === 6 ? 3 : 8;
+    const count = Math.floor(Math.random() * (max + 1));
+    days.push({ date: dateStr, count, dayOfWeek });
+  }
+  return days;
+}
+
+const heatmapData = generateHeatmapData();
+
+function HeatmapGrid() {
+  const cellSize = 12;
+  const gap = 2;
+  // Group by week columns
+  const weeks: typeof heatmapData[] = [];
+  let currentWeek: typeof heatmapData = [];
+  for (const day of heatmapData) {
+    if (day.dayOfWeek === 0 && currentWeek.length > 0) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+    currentWeek.push(day);
+  }
+  if (currentWeek.length > 0) weeks.push(currentWeek);
+
+  const getColor = (count: number) => {
+    if (count === 0) return '#e5eeff';
+    if (count <= 2) return '#c3c0ff';
+    if (count <= 4) return '#7c6ff7';
+    if (count <= 6) return '#4d44e3';
+    return '#3525cd';
+  };
+
+  return (
+    <div className="flex gap-[2px] overflow-x-auto">
+      {weeks.map((week, wi) => (
+        <div key={wi} className="flex flex-col gap-[2px]">
+          {Array.from({ length: 7 }).map((_, di) => {
+            const day = week.find(d => d.dayOfWeek === di);
+            return (
+              <div
+                key={di}
+                className="rounded-sm transition-colors"
+                style={{
+                  width: cellSize,
+                  height: cellSize,
+                  backgroundColor: day ? getColor(day.count) : 'transparent',
+                }}
+                title={day ? `${day.date}: ${day.count} submissions` : ''}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [committees, setCommittees] = useState<Committee[]>([]);
@@ -116,8 +183,11 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const EVENT_DATE = new Date('2026-09-15');
-  const daysRemaining = Math.max(0, daysUntil(EVENT_DATE));
+   const EVENT_DATE = new Date('2026-08-18');
+    const daysRemaining = Math.max(0, daysUntil(EVENT_DATE));
+    const overdueMilestones = upcomingMilestones.filter(
+      m => new Date(m.deadline) < new Date() && m.status !== 'completed'
+    ).length;
 
   if (loading || !data) {
     return <div className="p-8 flex items-center justify-center min-h-screen">
@@ -172,7 +242,7 @@ export default function DashboardPage() {
           <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 100%, rgba(255,255,255,0.4) 0%, transparent 60%)' }}></div>
           <span className="font-geist text-[72px] font-bold leading-none mb-1 relative z-10">{daysRemaining}</span>
           <span className="text-label-md uppercase tracking-widest opacity-90 relative z-10">Days to Event</span>
-          <span className="text-label-sm opacity-70 mt-2 relative z-10">September 15, 2026</span>
+          <span className="text-label-sm opacity-70 mt-2 relative z-10">Data Day — August 18, 2026</span>
         </div>
 
         {/* Overall Progress */}
@@ -205,7 +275,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Active Blockers */}
-        <div className="col-span-1 md:col-span-4 bg-error-container border border-error/20 rounded-xl p-5 flex items-center gap-4">
+        <div className="col-span-1 md:col-span-2 bg-error-container border border-error/20 rounded-xl p-5 flex items-center gap-4">
           <div className="p-3 bg-error text-on-error rounded-full">
             <span className="material-symbols-outlined fill-icon">warning</span>
           </div>
@@ -213,6 +283,25 @@ export default function DashboardPage() {
             <p className="text-body-sm text-on-error-container/70 mb-1">Active Blockers</p>
             <p className="font-geist text-headline-md text-on-error-container font-semibold">{data.active_blockers} Urgent</p>
             <p className="text-label-sm text-on-error-container/60 mt-1">Require immediate action</p>
+          </div>
+        </div>
+
+        {/* Overdue Milestones */}
+        <div className={cn(
+          'col-span-1 md:col-span-2 rounded-xl p-5 flex items-center gap-4 border',
+          overdueMilestones > 0 ? 'bg-error-container border-error/20' : 'bg-surface border-outline-variant'
+        )}>
+          <div className={cn('p-3 rounded-full', overdueMilestones > 0 ? 'bg-error text-on-error' : 'bg-surface-container-high text-primary')}>
+            <span className="material-symbols-outlined fill-icon">flag</span>
+          </div>
+          <div>
+            <p className={cn('text-body-sm mb-1', overdueMilestones > 0 ? 'text-on-error-container/70' : 'text-secondary')}>Overdue Milestones</p>
+            <p className={cn('font-geist text-headline-md font-semibold', overdueMilestones > 0 ? 'text-on-error-container' : 'text-on-surface')}>
+              {overdueMilestones} {overdueMilestones === 1 ? 'Milestone' : 'Milestones'}
+            </p>
+            <p className={cn('text-label-sm mt-1', overdueMilestones > 0 ? 'text-on-error-container/60' : 'text-secondary')}>
+              {overdueMilestones > 0 ? 'Past deadline — needs attention' : 'All milestones on track'}
+            </p>
           </div>
         </div>
 
@@ -302,6 +391,28 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Submission Heatmap */}
+        <div className="col-span-1 md:col-span-6 bg-surface border border-outline-variant rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-geist text-headline-sm text-on-surface font-semibold">Submission Activity</h3>
+              <p className="text-label-sm text-secondary">Last 90 days — GitHub-style contribution grid</p>
+            </div>
+            <div className="flex items-center gap-1 text-[10px] text-secondary">
+              Less
+              {[0, 2, 4, 6, 8].map(v => (
+                <div
+                  key={v}
+                  className="w-3 h-3 rounded-sm"
+                  style={{ backgroundColor: v === 0 ? '#e5eeff' : v <= 2 ? '#c3c0ff' : v <= 4 ? '#7c6ff7' : v <= 6 ? '#4d44e3' : '#3525cd' }}
+                />
+              ))}
+              More
+            </div>
+          </div>
+          <HeatmapGrid />
         </div>
 
         {/* Recent Submissions */}

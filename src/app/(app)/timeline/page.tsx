@@ -195,7 +195,7 @@ export default function TimelinePage() {
     if (!aiCommitteeId || aiMilestones.length === 0) return;
     setAiLoading(true);
     try {
-      const createdMilestones = [];
+      const createdMilestones: Milestone[] = [];
       for (const m of aiMilestones) {
         const res = await fetch('/api/milestones', {
           method: 'POST',

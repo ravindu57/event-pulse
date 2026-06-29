@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Committee, Milestone, Task, SubmissionFile } from '@/types';
 import { cn, formatBytes } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -21,6 +21,7 @@ export default function NewSubmissionPage() {
   const [committees, setCommittees] = useState<Committee[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [checkedMilestones, setCheckedMilestones] = useState<Set<string>>(new Set());
   
   const [files, setFiles] = useState<SubmissionFile[]>([]);
   const [aiPreview, setAiPreview] = useState<AIPreview | null>(null);
@@ -31,6 +32,11 @@ export default function NewSubmissionPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const demoMode = isDemoMode();
+
+  // Draft auto-save
+  const DRAFT_KEY = 'eventpulse_submission_draft';
+  const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null);
+  const [draftLabel, setDraftLabel] = useState<string>('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +60,58 @@ export default function NewSubmissionPage() {
       }
     }
     fetchData();
+
+    // Restore draft from localStorage
+    try {
+      const saved = localStorage.getItem('eventpulse_submission_draft');
+      if (saved) {
+        const draft = JSON.parse(saved);
+        if (draft.summary) setSummary(draft.summary);
+        if (draft.committee_id) setSelectedCommittee(draft.committee_id);
+        if (draft.saved_at) setDraftSavedAt(new Date(draft.saved_at));
+      }
+    } catch {}
   }, []);
+
+  // Auto-save draft every 30 seconds
+  const saveDraft = useCallback(() => {
+    if (!summary.trim()) return;
+    try {
+      const now = new Date();
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        summary,
+        committee_id: selectedCommittee,
+        saved_at: now.toISOString(),
+      }));
+      setDraftSavedAt(now);
+    } catch {}
+  }, [summary, selectedCommittee]);
+
+  useEffect(() => {
+    const interval = setInterval(saveDraft, 30000);
+    return () => clearInterval(interval);
+  }, [saveDraft]);
+
+  // Update human-readable draft label every minute
+  useEffect(() => {
+    function updateLabel() {
+      if (!draftSavedAt) { setDraftLabel(''); return; }
+      const diffMs = Date.now() - draftSavedAt.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      setDraftLabel(diffMins < 1 ? 'Draft saved just now' : `Draft saved ${diffMins}m ago`);
+    }
+    updateLabel();
+    const t = setInterval(updateLabel, 30000);
+    return () => clearInterval(t);
+  }, [draftSavedAt]);
+
+  const toggleMilestone = (id: string) => {
+    setCheckedMilestones(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const today = format(new Date(), 'MMMM d, yyyy');
   const committee = committees.find(c => c.id === selectedCommittee);
@@ -121,6 +178,8 @@ export default function NewSubmissionPage() {
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    // Clear draft on submit
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
     try {
       if (demoMode) {
         const demoLLMAnalysis = aiPreview
@@ -255,16 +314,29 @@ export default function NewSubmissionPage() {
             </div>
             <textarea
               value={summary}
-              onChange={e => { setSummary(e.target.value); setAiPreview(null); }}
+              onChange={e => {
+                setSummary(e.target.value);
+                setAiPreview(null);
+                setDraftSavedAt(null); // will be set again on next auto-save tick
+              }}
               className="w-full bg-surface text-on-surface border border-outline-variant rounded-xl p-4 text-body-md min-h-[160px] focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none resize-y"
               placeholder="Summarize key activities, metrics, and achievements. Be specific — the AI analyzes this to quantify progress..."
             />
-            {summary.length > 20 && !aiPreview && (
-              <button onClick={analyzeWithAI} className="mt-4 text-label-md text-primary flex items-center gap-1.5 hover:underline bg-primary/10 px-3 py-1.5 rounded-lg w-fit">
-                <span className="material-symbols-outlined fill-icon text-[18px]">auto_awesome</span>
-                Run AI Pre-Analysis
-              </button>
-            )}
+            <div className="mt-2 flex items-center justify-between">
+              {draftLabel && (
+                <span className="text-label-sm text-secondary flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">save</span>
+                  {draftLabel}
+                </span>
+              )}
+              {!draftLabel && <span />}
+              {summary.length > 20 && !aiPreview && (
+                <button onClick={analyzeWithAI} className="text-label-md text-primary flex items-center gap-1.5 hover:underline bg-primary/10 px-3 py-1.5 rounded-lg">
+                  <span className="material-symbols-outlined fill-icon text-[18px]">auto_awesome</span>
+                  Run AI Pre-Analysis
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Task Checklist */}
@@ -313,6 +385,49 @@ export default function NewSubmissionPage() {
               <span className="material-symbols-outlined text-[16px]">add</span> Add Manual Task
             </button>
           </div>
+
+          {/* Milestone Checkboxes */}
+          {upcomingMilestones.length > 0 && (
+            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm">
+              <div className="mb-4 border-b border-outline-variant pb-4">
+                <h3 className="font-geist text-headline-sm text-on-surface font-semibold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary fill-icon">flag</span>
+                  Milestone Progress
+                </h3>
+                <p className="text-body-sm text-secondary mt-1">Check milestones addressed in today&apos;s submission.</p>
+              </div>
+              <div className="space-y-2">
+                {upcomingMilestones.map(m => {
+                  const checked = checkedMilestones.has(m.id);
+                  const daysLeft = Math.max(0, Math.floor((new Date(m.deadline).getTime() - Date.now()) / 86400000));
+                  return (
+                    <label key={m.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer border border-transparent hover:border-outline-variant">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleMilestone(m.id)}
+                        className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary bg-surface transition-all cursor-pointer mt-0.5"
+                      />
+                      <div className="flex-1">
+                        <p className={cn('text-label-md font-medium transition-colors', checked ? 'line-through text-secondary' : 'text-on-surface')}>
+                          {m.title}
+                        </p>
+                        <p className="text-body-sm text-secondary mt-0.5">
+                          {daysLeft === 0 ? 'Due today' : `Due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`}
+                          {' · '}{m.progress_pct}% complete
+                        </p>
+                      </div>
+                      {m.status === 'at_risk' && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-error text-on-error flex-shrink-0">
+                          At Risk
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* File Upload */}
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-6 shadow-sm">

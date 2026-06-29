@@ -14,6 +14,29 @@ export default function ReportsPage() {
   const [submissions, setSubmissions] = useState<DailySubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [animated, setAnimated] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const exportCsv = async (format: 'csv' | 'committees' = 'csv') => {
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/reports/export?format=${format}`);
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `eventpulse_${format}_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export error:', err);
+      alert('Export failed. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -107,11 +130,25 @@ export default function ReportsPage() {
           <p className="text-body-lg text-secondary">Deep insights into event progress, committee performance, and submission trends.</p>
         </div>
         <div className="flex gap-3">
-          <button className="px-4 py-2 bg-surface border border-outline-variant rounded-xl text-label-md text-on-surface hover:bg-surface-container-low flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">download</span> Export CSV
+          <button
+            onClick={() => exportCsv('csv')}
+            disabled={exporting}
+            className="px-4 py-2 bg-surface border border-outline-variant rounded-xl text-label-md text-on-surface hover:bg-surface-container-low flex items-center gap-2 disabled:opacity-60 transition-all"
+          >
+            {exporting ? (
+              <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+            ) : (
+              <span className="material-symbols-outlined text-[18px]">download</span>
+            )}
+            Export CSV
           </button>
-          <button className="px-4 py-2 bg-primary text-on-primary rounded-xl text-label-md hover:bg-surface-tint shadow-sm flex items-center gap-2 btn-tactile">
-            <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span> PDF Report
+          <button
+            onClick={() => exportCsv('committees')}
+            disabled={exporting}
+            className="px-4 py-2 bg-primary text-on-primary rounded-xl text-label-md hover:bg-surface-tint shadow-sm flex items-center gap-2 btn-tactile disabled:opacity-60 transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">groups</span>
+            Committees CSV
           </button>
         </div>
       </div>

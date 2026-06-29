@@ -49,8 +49,14 @@ export interface LLMAnalysis {
   completed_tasks: string[];
   blockers: string[];
   sentiment: 'positive' | 'neutral' | 'negative';
-  key_metrics: Record<string, string>;
+  key_metrics: Record<string, unknown>;
   overall_assessment: string;
+  confidence_score?: number;
+  needs_attention?: boolean;
+  attention_reason?: string;
+  coordinator_override?: boolean;
+  provider?: string;
+  raw_response?: string;
   analyzed_at: string;
 }
 
@@ -62,9 +68,11 @@ export interface DailySubmission {
   summary: string;
   files: SubmissionFile[];
   llm_analysis?: LLMAnalysis;
+  analysis_status?: 'pending' | 'processing' | 'done' | 'failed' | 'pending_retry';
   submitted_by: string;
   submitter?: Profile;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface DashboardSummary {
@@ -75,6 +83,7 @@ export interface DashboardSummary {
   active_blockers: number;
   total_submissions_today: number;
   committees_submitted_today: number;
+  overdue_milestones: number;
   ai_brief: string;
   committee_progress: Array<{
     id: string;
@@ -83,6 +92,33 @@ export interface DashboardSummary {
     status: string;
     last_submitted_at?: string;
   }>;
+}
+
+export type NotificationType =
+  | 'analysis_complete'
+  | 'needs_attention'
+  | 'milestone_due'
+  | 'daily_reminder'
+  | 'streak_broken';
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body?: string;
+  read: boolean;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CommitteeStats {
+  committee_id: string;
+  current_streak: number;
+  longest_streak: number;
+  total_submissions: number;
+  last_submission_date?: string;
+  updated_at: string;
 }
 
 export interface Task {

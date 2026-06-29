@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const navItems = [
   { href: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
@@ -12,6 +13,7 @@ const navItems = [
   { href: '/files', icon: 'folder_open', label: 'Files' },
   { href: '/submissions', icon: 'edit_note', label: 'Submissions' },
   { href: '/reports', icon: 'analytics', label: 'Reports' },
+  { href: '/settings', icon: 'settings', label: 'Settings' },
 ];
 
 export function Sidebar() {
@@ -67,13 +69,7 @@ export function Sidebar() {
 
       {/* Footer Links */}
       <div className="mt-auto flex flex-col gap-1 border-t border-outline-variant pt-4 mx-4">
-        <Link
-          href="/help"
-          className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-xl text-label-md font-medium transition-all"
-        >
-          <span className="material-symbols-outlined text-[20px]">help</span>
-          Help Center
-        </Link>
+        <NotificationBell />
         <button className="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high rounded-xl text-label-md font-medium transition-all w-full">
           <span className="material-symbols-outlined text-[20px]">logout</span>
           Log Out
@@ -93,9 +89,7 @@ export function MobileHeader() {
         <span className="font-geist font-black text-primary text-[18px]">EventPulse</span>
       </div>
       <div className="flex items-center gap-2">
-        <button className="text-secondary hover:bg-surface-container-low p-2 rounded-full transition-colors">
-          <span className="material-symbols-outlined">notifications</span>
-        </button>
+        <NotificationBell compact />
       </div>
     </header>
   );

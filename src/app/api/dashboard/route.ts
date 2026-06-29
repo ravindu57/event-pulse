@@ -49,14 +49,6 @@ export async function GET(req: NextRequest) {
 
     const aiBrief = latestSnapshot?.ai_brief || `Event progress is tracking at ${overallProgress}%. ${committeesSubmittedToday}/${totalCommittees} committees have submitted updates today. There are currently ${activeBlockers} active blockers requiring attention.`;
 
-    const dashboardSummary = {
-      overall_progress: overallProgress,
-      total_committees: totalCommittees,
-      committees_submitted_today: committeesSubmittedToday,
-      active_blockers: activeBlockers,
-      ai_brief: aiBrief,
-    };
-
     // Fetch upcoming milestones
     const { data: upcomingMilestones } = await supabase
       .from('milestones')
@@ -64,6 +56,23 @@ export async function GET(req: NextRequest) {
       .in('status', ['upcoming', 'in_progress', 'at_risk'])
       .order('deadline', { ascending: true })
       .limit(5);
+
+    // Count overdue milestones (deadline passed + not completed)
+    const todayDate = new Date().toISOString().split('T')[0];
+    const { count: overdueCount } = await supabase
+      .from('milestones')
+      .select('*', { count: 'exact', head: true })
+      .lt('deadline', todayDate)
+      .neq('status', 'completed');
+
+    const dashboardSummary = {
+      overall_progress: overallProgress,
+      total_committees: totalCommittees,
+      committees_submitted_today: committeesSubmittedToday,
+      active_blockers: activeBlockers,
+      overdue_milestones: overdueCount || 0,
+      ai_brief: aiBrief,
+    };
 
     return NextResponse.json({
       summary: dashboardSummary,

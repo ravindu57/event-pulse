@@ -218,6 +218,7 @@ export const mockDashboard: DashboardSummary = {
   active_blockers: 3,
   total_submissions_today: 4,
   committees_submitted_today: 4,
+  overdue_milestones: 2,
   ai_brief: 'Overall event progress is tracking at 72%, with Logistics and Programming marking key milestones today. However, the Tech & AV committee has flagged critical delays — only 12% complete with an overdue submission 3 days ago. Finance has 3 active blockers related to budget approvals that require immediate coordinator attention. With 81 days remaining, the highest priority risk is the AV Services procurement gap which could cascade into technical setup delays closer to event day.',
   committee_progress: mockCommittees.map(c => ({
     id: c.id,
